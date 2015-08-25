@@ -127,12 +127,12 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				payload, err = or.Encode(pack)
 				if err != nil {
 					or.LogError(err)
-					pack.Recycle()
+					pack.Recycle(nil)
 					continue
 				}
 			} else {
 				payload = []byte(pack.Message.GetPayload())
-				pack.Recycle()
+				pack.Recycle(nil)
 			}
 
 			// Write to both file and buffer
