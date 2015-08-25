@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tommyvicananza/heka-bigquery/bq"
+	bigquery "google.golang.org/api/bigquery/v2"
 
 	. "github.com/mozilla-services/heka/pipeline"
 )
