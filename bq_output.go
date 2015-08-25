@@ -12,9 +12,7 @@ import (
 	"os"
 	"time"
 
-	"google.golang.org/api/bigquery/v2"
-
-	"github.com/aranair/heka-bigquery/bq"
+	"github.com/tommyvicananza/heka-bigquery/bq"
 
 	. "github.com/mozilla-services/heka/pipeline"
 )
