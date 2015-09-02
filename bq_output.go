@@ -127,8 +127,11 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				if err != nil {
 					or.LogError(err)
 					pack.Recycle(err)
-					logUpdate(or, "Primer bucle")
+					logUpdate(or, "Primer bloque error distinto nil")
 					continue
+				}
+				else {
+					logUpdate(or, "Primer bloque error es nil")
 				}
 			} else {
 				payload = []byte(pack.Message.GetPayload())
