@@ -126,7 +126,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				payload, err = or.Encode(pack)
 				if err != nil {
 					or.LogError(err)
-					pack.Recycle(nil)
+					pack.Recycle(err)
 					continue
 				}
 			} else {
