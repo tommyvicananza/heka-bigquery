@@ -129,8 +129,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					pack.Recycle(err)
 					logUpdate(or, "Primer bloque error distinto nil")
 					continue
-				}
-				else {
+				} else {
 					logUpdate(or, "Primer bloque error es nil")
 				}
 			} else {
