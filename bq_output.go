@@ -127,15 +127,13 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				if err != nil {
 					or.LogError(err)
 					pack.Recycle(err)
-					logUpdate(or, "Primer bloque error distinto nil")
 					continue
 				} else {
-					logUpdate(or, "Primer bloque error es nil")
+					pack.Recycle(nil)
 				}
 			} else {
 				payload = []byte(pack.Message.GetPayload())
 				pack.Recycle(nil)
-				logUpdate(or, "Segundo bloque")
 			}
 
 			// Write to both file and buffer
