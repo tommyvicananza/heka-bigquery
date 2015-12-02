@@ -7,6 +7,7 @@ package hbq
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -75,6 +76,21 @@ func (bqo *BqOutput) Init(config interface{}) (err error) {
 	return
 }
 
+func existsInSlice(tableName string, tables []string) bool {
+	for _, n := range tables {
+		if n == tableName {
+			return true
+		}
+	}
+	return false
+}
+
+type pay struct {
+	ContainerName string `json:"container_name"`
+	Hostname      string `json:"hostname"`
+	// { "container_id":"foo",  "container_name":"foo", "hostname":"foo", "time":"foo", "output":"foo", "logger_type":"foo"}
+}
+
 // Gets called by Heka when the plugin is running.
 // For more information, visit https://hekad.readthedocs.org/en/latest/developing/plugin.html
 func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
@@ -83,37 +99,24 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 		pack    *PipelinePack
 		payload []byte
 
-		// File used for the backup buffer
-		f *os.File
+		fullPath string
 
-		// The "current" time that is used to upload. Used to keep track of old/new day when midnight ticker ticks.
-		oldDay time.Time
+		files   map[string]*os.File
+		buffers map[string]*bytes.Buffer
+		tables  []string
 
-		// When the midnight ticker ticks, this is used to format the new bigquery table name.
-		now time.Time
-		ok  = true
+		ok = true
 	)
+
+	files = make(map[string]*os.File)
+	buffers = make(map[string]*bytes.Buffer)
+	fileOp := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 
 	// Channel that delivers the heka payloads
 	inChan := or.InChan()
-	midnightTicker := midnightTickerUpdate()
-
-	// Buffer that is used to store logs before uploading to bigquery
-	buf := bytes.NewBuffer(nil)
-	fileOp := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 
 	// Ensures that the directories are there before saving
 	mkDirectories(bqo.config.BufferPath)
-
-	fp := bqo.config.BufferPath + "/" + bqo.config.BufferFile // form full path
-	f, _ = os.OpenFile(fp, fileOp, 0666)
-
-	oldDay = time.Now().Local()
-
-	// Initializes the current day table
-	if err = bqo.bu.CreateTable(bqo.tableName(oldDay), bqo.schema); err != nil {
-		logError(or, "Initialize Table", err)
-	}
 
 	encoder := or.Encoder()
 	for ok {
@@ -136,36 +139,50 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				pack.Recycle(nil)
 			}
 
+			var p pay
+			err = json.Unmarshal(payload, &p)
+			if err != nil {
+				logError(or, "Reading payload ", err)
+				continue
+			}
+
+			if p.ContainerName == "" {
+				p.ContainerName = fmt.Sprintf("syslog_%s", p.Hostname)
+			}
+
+			fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.ContainerName)
+
+			if e := existsInSlice(p.ContainerName, tables); e == false {
+				tables = append(tables, p.ContainerName)
+				// Buffer that is used to store logs before uploading to bigquery
+				buffers[p.ContainerName] = bytes.NewBuffer(nil)
+				//fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.ContainerName)
+				files[p.ContainerName], err = os.OpenFile(fullPath, fileOp, 0666)
+				if err != nil {
+					logError(or, "Creating file", err)
+				}
+				if err = bqo.bu.CreateTable(p.ContainerName, bqo.schema); err != nil {
+					logError(or, "Initialize Table", err)
+				}
+			}
+
 			// Write to both file and buffer
-			if _, err = f.Write(payload); err != nil {
+			if _, err = files[p.ContainerName].Write(payload); err != nil {
 				logError(or, "Write to File", err)
 			}
-			if _, err = buf.Write(payload); err != nil {
+			if _, err = buffers[p.ContainerName].Write(payload); err != nil {
 				logError(or, "Write to Buffer", err)
 			}
 
 			// Upload Stuff (1mb)
-			if buf.Len() > MaxBuffer {
-				f.Close() // Close file for uploading
-				bqo.UploadAndReset(buf, fp, oldDay, or)
-				f, _ = os.OpenFile(fp, fileOp, 0666)
+			if buffers[p.ContainerName].Len() > MaxBuffer {
+				files[p.ContainerName].Close() // Close file for uploading
+				bqo.UploadAndReset(buffers[p.ContainerName], fullPath, p.ContainerName, or)
+				files[p.ContainerName], err = os.OpenFile(fullPath, fileOp, 0666)
+				if err != nil {
+					logError(or, "Creating file", err)
+				}
 			}
-		case <-midnightTicker.C:
-			now = time.Now().Local()
-
-			// If Buffer is not empty, upload the rest of the contents to the oldday's table.
-			if buf.Len() > 0 {
-				f.Close() // Close file for uploading
-				bqo.UploadAndReset(buf, fp, oldDay, or)
-				f, _ = os.OpenFile(fp, fileOp, 0666)
-			}
-			logUpdate(or, "Midnight! Creating new table: "+bqo.tableName(now))
-
-			// Create a new table for the new day and update current date.
-			if err = bqo.bu.CreateTable(bqo.tableName(now), bqo.schema); err != nil {
-				logError(or, "Create New Day Table", err)
-			}
-			oldDay = now
 		}
 	}
 
@@ -201,9 +218,9 @@ func readData(i interface{}) (line []byte, err error) {
 
 // Uploads buffer, and if it fails/contains errors, falls back to using the file to upload.
 // After which clears the buffer and deletes the backup file
-func (bqo *BqOutput) UploadAndReset(buf *bytes.Buffer, path string, d time.Time, or OutputRunner) {
-	tn := bqo.tableName(d)
-	logUpdate(or, "Buffer limit reached, uploading"+tn)
+func (bqo *BqOutput) UploadAndReset(buf *bytes.Buffer, path string, tn string, or OutputRunner) {
+
+	logUpdate(or, "Buffer limit reached, uploading "+tn)
 
 	if err := bqo.Upload(buf, tn); err != nil {
 		logError(or, "Upload Buffer", err)
