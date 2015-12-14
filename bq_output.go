@@ -145,7 +145,14 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				logError(or, "Reading payload ", err)
 				continue
 			}
-
+			mapa := make(map[string]interface{})
+			err = json.Unmarshal(payload, &mapa)
+			if _, ok := mapa["numproc"]; ok {
+				p.ContainerName = fmt.Sprintf("loadavg_%s", p.Hostname)
+			}
+			if _, ok := mapa["memtotal"]; ok {
+				p.ContainerName = fmt.Sprintf("mem_%s", p.Hostname)
+			}
 			if p.ContainerName == "" {
 				p.ContainerName = fmt.Sprintf("syslog_%s", p.Hostname)
 			}
