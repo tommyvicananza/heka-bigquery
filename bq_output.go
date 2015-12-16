@@ -153,6 +153,9 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			if _, ok := mapa["memtotal"]; ok {
 				p.ContainerName = fmt.Sprintf("mem_%s", p.Hostname)
 			}
+			if _, ok := mapa["cpu_id"]; ok {
+				p.ContainerName = fmt.Sprintf("cpu_%s", p.Hostname)
+			}
 			if p.ContainerName == "" {
 				p.ContainerName = fmt.Sprintf("syslog_%s", p.Hostname)
 			}
