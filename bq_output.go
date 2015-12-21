@@ -211,8 +211,8 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				}
 				for key, v := range message.Cpus {
 					v.Id = key
-					v.Hostname = cpu.Hostname
-					v.Time = cpu.Hostname
+					v.Hostname = message.Hostname
+					v.Time = message.Hostname
 					c, _ := json.Marshal(v)
 					if _, err = files[p.ContainerName].Write(c); err != nil {
 						logError(or, "Write to File", err)
