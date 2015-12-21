@@ -203,6 +203,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					logError(or, "Write to Buffer", err)
 				}
 			} else {
+				logUpdate(or, "Estoy aqui")
 				var message CPUOrig
 				err := json.Unmarshal(payload, &message)
 				if err != nil {
