@@ -57,6 +57,24 @@ type BqOutput struct {
 	bu     *bq.BqUploader
 }
 
+// CPU to insert in BigQuery
+type CPU struct {
+	Nice     int    `json:"nice"`
+	System   int    `json:"system"`
+	Idle     int    `json:"idle"`
+	User     int    `json:"user"`
+	Time     string `json:"time"`
+	Hostname string `json:"hostname"`
+	Id       string `json:"id"`
+}
+
+// CPUOrig from payload
+type CPUOrig struct {
+	Cpus     map[string]Cpus `json:"cpu"`
+	Time     string          `json:"time"`
+	Hostname string          `json:"hostname"`
+}
+
 func (bqo *BqOutput) ConfigStruct() interface{} {
 	return &BqOutputConfig{}
 }
@@ -153,7 +171,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			if _, ok := mapa["memtotal"]; ok {
 				p.ContainerName = fmt.Sprintf("mem_%s", p.Hostname)
 			}
-			if _, ok := mapa["cpu_id"]; ok {
+			if _, ok := mapa["cpu"]; ok {
 				p.ContainerName = fmt.Sprintf("cpu_%s", p.Hostname)
 			}
 			if p.ContainerName == "" {
@@ -177,11 +195,32 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			}
 
 			// Write to both file and buffer
-			if _, err = files[p.ContainerName].Write(payload); err != nil {
-				logError(or, "Write to File", err)
-			}
-			if _, err = buffers[p.ContainerName].Write(payload); err != nil {
-				logError(or, "Write to Buffer", err)
+			if p.ContainerName != "cpu" {
+				if _, err = files[p.ContainerName].Write(payload); err != nil {
+					logError(or, "Write to File", err)
+				}
+				if _, err = buffers[p.ContainerName].Write(payload); err != nil {
+					logError(or, "Write to Buffer", err)
+				}
+			} else {
+				var message CPUOrig
+				err := json.Unmarshal(payload, &message)
+				if err != nil {
+					logError(or, "Reading payload ", err)
+					continue
+				}
+				for key, v := range message.Cpus {
+					v.Id = key
+					v.Hostname = cpu.Hostname
+					v.Time = cpu.Hostname
+					c, _ := json.Marshal(v)
+					if _, err = files[p.ContainerName].Write(c); err != nil {
+						logError(or, "Write to File", err)
+					}
+					if _, err = buffers[p.ContainerName].Write(c); err != nil {
+						logError(or, "Write to Buffer", err)
+					}
+				}
 			}
 
 			// Upload Stuff (1mb)
