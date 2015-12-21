@@ -195,7 +195,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			}
 
 			// Write to both file and buffer
-			if p.ContainerName != ("cpu" + p.Hostname) {
+			if p.ContainerName != ("cpu_" + p.Hostname) {
 				if _, err = files[p.ContainerName].Write(payload); err != nil {
 					logError(or, "Write to File", err)
 				}
