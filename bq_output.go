@@ -214,7 +214,8 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					v.Id = key
 					v.Hostname = message.Hostname
 					v.Time = message.Hostname
-					c, _ := json.MarshalIndent(v, "", "\n")
+					c, _ := json.Marshal(v)
+					c = append(c, []byte("\n")...)
 					if _, err = files[p.ContainerName].Write(c); err != nil {
 						logError(or, "Write to File", err)
 					}
