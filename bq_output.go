@@ -70,7 +70,7 @@ type CPU struct {
 
 // CPUOrig from payload
 type CPUOrig struct {
-	Cpuss    map[string]CPU `json:"cpu"`
+	Cpus     map[string]CPU `json:"cpu"`
 	Time     string         `json:"time"`
 	Hostname string         `json:"hostname"`
 }
