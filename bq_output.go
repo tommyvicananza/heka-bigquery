@@ -70,9 +70,9 @@ type CPU struct {
 
 // CPUOrig from payload
 type CPUOrig struct {
-	Cpus     map[string]Cpus `json:"cpu"`
-	Time     string          `json:"time"`
-	Hostname string          `json:"hostname"`
+	Cpus     map[string]CPU `json:"cpu"`
+	Time     string         `json:"time"`
+	Hostname string         `json:"hostname"`
 }
 
 func (bqo *BqOutput) ConfigStruct() interface{} {
