@@ -66,7 +66,7 @@ type CPU struct {
 	User     int    `json:"user"`
 	Time     string `json:"time"`
 	Hostname string `json:"hostname"`
-	Id       string `json:"id"`
+	Id       int    `json:"id"`
 }
 
 // CPUOrig from payload
