@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/tommyvicananza/heka-bigquery/bq"
@@ -211,7 +212,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					continue
 				}
 				for key, v := range message.Cpus {
-					v.Id = key
+					v.Id, err = strconv.Atoi(key)
 					v.Hostname = message.Hostname
 					v.Time = message.Time
 					c, _ := json.Marshal(v)
