@@ -252,7 +252,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					logError(or, "Reading payload ", err)
 					continue
 				}
-				for key, v := range message.Disk {
+				for _, v := range message.Disk {
 					v.Hostname = message.Hostname
 					v.Time = message.Time
 					c, _ := json.Marshal(v)
