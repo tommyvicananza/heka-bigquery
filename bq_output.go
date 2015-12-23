@@ -60,12 +60,12 @@ type BqOutput struct {
 
 // Disk to insert in BigQuery
 type Disk struct {
-	Mount       int    `json:"mount"`
+	Mount       string `json:"mount"`
 	Size        int    `json:"size"`
 	Used        int    `json:"used"`
 	Percentused int    `json:"percentused"`
-	Type        int    `json:"type"`
-	Device      int    `json:"device"`
+	Type        string `json:"type"`
+	Device      string `json:"device"`
 	Available   int    `json:"available"`
 	Hostname    string `json:"hostname"`
 	Time        string `json:"time"`
