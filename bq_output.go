@@ -58,6 +58,25 @@ type BqOutput struct {
 	bu     *bq.BqUploader
 }
 
+// Disk to insert in BigQuery
+type Disk struct {
+	Mount       int    `json:"mount"`
+	Size        int    `json:"size"`
+	Used        int    `json:"used"`
+	Percentused int    `json:"percentused"`
+	Type        int    `json:"type"`
+	Device      int    `json:"device"`
+	Available   int    `json:"available"`
+	Hostname    string `json:"hostname"`
+	Time        string `json:"time"`
+}
+
+type DiskOrig struct {
+	Disk     map[string]Disk `json:"disk"`
+	Time     string          `json:"time"`
+	Hostname string          `json:"hostname"`
+}
+
 // CPU to insert in BigQuery
 type CPU struct {
 	Nice     int    `json:"nice"`
@@ -175,6 +194,9 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			if _, ok := mapa["cpu"]; ok {
 				p.ContainerName = fmt.Sprintf("cpu_%s", p.Hostname)
 			}
+			if _, ok := mapa["disk"]; ok {
+				p.ContainerName = fmt.Sprintf("disk_%s", p.Hostname)
+			}
 			if p.ContainerName == "" {
 				p.ContainerName = fmt.Sprintf("syslog_%s", p.Hostname)
 			}
@@ -196,15 +218,14 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 			}
 
 			// Write to both file and buffer
-			if p.ContainerName != ("cpu_" + p.Hostname) {
+			if p.ContainerName != ("cpu_"+p.Hostname) && p.ContainerName != ("disk_"+p.Hostname) {
 				if _, err = files[p.ContainerName].Write(payload); err != nil {
 					logError(or, "Write to File", err)
 				}
 				if _, err = buffers[p.ContainerName].Write(payload); err != nil {
 					logError(or, "Write to Buffer", err)
 				}
-			} else {
-				logUpdate(or, "Estoy aqui")
+			} else if p.ContainerName == ("cpu_" + p.Hostname) {
 				var message CPUOrig
 				err := json.Unmarshal(payload, &message)
 				if err != nil {
@@ -212,6 +233,26 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					continue
 				}
 				for key, v := range message.Cpus {
+					v.Id, err = strconv.Atoi(key)
+					v.Hostname = message.Hostname
+					v.Time = message.Time
+					c, _ := json.Marshal(v)
+					c = append(c, []byte("\n")...)
+					if _, err = files[p.ContainerName].Write(c); err != nil {
+						logError(or, "Write to File", err)
+					}
+					if _, err = buffers[p.ContainerName].Write(c); err != nil {
+						logError(or, "Write to Buffer", err)
+					}
+				}
+			} else if p.ContainerName == ("disk_" + p.Hostname) {
+				var message DiskOrig
+				err := json.Unmarshal(payload, &message)
+				if err != nil {
+					logError(or, "Reading payload ", err)
+					continue
+				}
+				for key, v := range message.Disk {
 					v.Id, err = strconv.Atoi(key)
 					v.Hostname = message.Hostname
 					v.Time = message.Time
