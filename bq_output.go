@@ -253,7 +253,6 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					continue
 				}
 				for key, v := range message.Disk {
-					v.Id, err = strconv.Atoi(key)
 					v.Hostname = message.Hostname
 					v.Time = message.Time
 					c, _ := json.Marshal(v)
