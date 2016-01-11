@@ -154,7 +154,7 @@ func checkPayloadType(ptype payloadType, pay *p) {
 		p.Name = fmt.Sprintf("disk_%s", p.Hostname)
 	}
 	if _, ok := ptype["container_name"]; ok {
-		p.Name = fmt.Sprintf("%s", mapa["container_name"])
+		p.Name = fmt.Sprintf("%s", ptype["container_name"])
 	}
 	if p.Name == "" {
 		p.Name = fmt.Sprintf("syslog_%s", p.Hostname)
