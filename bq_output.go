@@ -212,7 +212,7 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				logError(or, "Reading payload ", err)
 				continue
 			}
-			checkPayloadType(mtype, &p)
+			checkPayloadType(ptype, &p)
 
 			fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.Name)
 
