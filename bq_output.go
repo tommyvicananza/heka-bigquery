@@ -141,22 +141,22 @@ type pay struct {
 type payloadType map[string]interface{}
 
 func checkPayloadType(ptype payloadType, pay *p) {
-	if _, ok := mapa["numproc"]; ok {
+	if _, ok := ptype["numproc"]; ok {
 		p.Name = fmt.Sprintf("loadavg_%s", p.Hostname)
 	}
-	if _, ok := mapa["memtotal"]; ok {
+	if _, ok := ptype["memtotal"]; ok {
 		p.Name = fmt.Sprintf("mem_%s", p.Hostname)
 	}
-	if _, ok := mapa["cpu"]; ok {
+	if _, ok := ptype["cpu"]; ok {
 		p.Name = fmt.Sprintf("cpu_%s", p.Hostname)
 	}
-	if _, ok := mapa["disk"]; ok {
+	if _, ok := ptype["disk"]; ok {
 		p.Name = fmt.Sprintf("disk_%s", p.Hostname)
 	}
-	if _, ok := mapa["container_name"]; ok {
+	if _, ok := ptype["container_name"]; ok {
 		p.Name = fmt.Sprintf("%s", mapa["container_name"])
 	}
-	if Name == "" {
+	if p.Name == "" {
 		p.Name = fmt.Sprintf("syslog_%s", p.Hostname)
 	}
 }
