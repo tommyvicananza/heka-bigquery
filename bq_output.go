@@ -123,15 +123,6 @@ func existsInSlice(tableName string, tables []string) bool {
 	return false
 }
 
-func (payload *byte) createPayload(err error) {
-	err = json.Unmarshal(payload, &p)
-	if err != nil {
-		logError(or, "Reading payload ", err)
-		continue
-	}
-	return
-}
-
 type pay struct {
 	Name     string `json:"container_name,omitempty"`
 	Hostname string `json:"hostname"`
