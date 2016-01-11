@@ -123,10 +123,39 @@ func existsInSlice(tableName string, tables []string) bool {
 	return false
 }
 
+func (payload *byte) createPayload(err error) {
+	err = json.Unmarshal(payload, &p)
+	if err != nil {
+		logError(or, "Reading payload ", err)
+		continue
+	}
+	return
+}
+
 type pay struct {
-	ContainerName string `json:"container_name"`
-	Hostname      string `json:"hostname"`
+	Name     string `json:"container_name,omitempty"`
+	Hostname string `json:"hostname"`
 	// { "container_id":"foo",  "container_name":"foo", "hostname":"foo", "time":"foo", "output":"foo", "logger_type":"foo"}
+}
+
+type payloadType map[string]interface{}
+
+func checkPayloadType(ptype payloadType, pay *p) {
+	if _, ok := mapa["numproc"]; ok {
+		p.Name = fmt.Sprintf("loadavg_%s", p.Hostname)
+	}
+	if _, ok := mapa["memtotal"]; ok {
+		p.Name = fmt.Sprintf("mem_%s", p.Hostname)
+	}
+	if _, ok := mapa["cpu"]; ok {
+		p.Name = fmt.Sprintf("cpu_%s", p.Hostname)
+	}
+	if _, ok := mapa["disk"]; ok {
+		p.Name = fmt.Sprintf("disk_%s", p.Hostname)
+	}
+	if Name == "" {
+		p.Name = fmt.Sprintf("syslog_%s", p.Hostname)
+	}
 }
 
 // Gets called by Heka when the plugin is running.
@@ -183,49 +212,39 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 				logError(or, "Reading payload ", err)
 				continue
 			}
-			mapa := make(map[string]interface{})
-			err = json.Unmarshal(payload, &mapa)
-			if _, ok := mapa["numproc"]; ok {
-				p.ContainerName = fmt.Sprintf("loadavg_%s", p.Hostname)
+			ptype := make(payloadType)
+			err = json.Unmarshal(payload, &ptype)
+			if err != nil {
+				logError(or, "Reading payload ", err)
+				continue
 			}
-			if _, ok := mapa["memtotal"]; ok {
-				p.ContainerName = fmt.Sprintf("mem_%s", p.Hostname)
-			}
-			if _, ok := mapa["cpu"]; ok {
-				p.ContainerName = fmt.Sprintf("cpu_%s", p.Hostname)
-			}
-			if _, ok := mapa["disk"]; ok {
-				p.ContainerName = fmt.Sprintf("disk_%s", p.Hostname)
-			}
-			if p.ContainerName == "" {
-				p.ContainerName = fmt.Sprintf("syslog_%s", p.Hostname)
-			}
+			checkPayloadType(mtype, &p)
 
-			fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.ContainerName)
+			fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.Name)
 
-			if e := existsInSlice(p.ContainerName, tables); e == false {
-				tables = append(tables, p.ContainerName)
+			if e := existsInSlice(p.Name, tables); e == false {
+				tables = append(tables, p.Name)
 				// Buffer that is used to store logs before uploading to bigquery
-				buffers[p.ContainerName] = bytes.NewBuffer(nil)
-				//fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.ContainerName)
-				files[p.ContainerName], err = os.OpenFile(fullPath, fileOp, 0666)
+				buffers[p.Name] = bytes.NewBuffer(nil)
+				//fullPath = fmt.Sprintf("%s/%s", bqo.config.BufferPath, p.Name)
+				files[p.Name], err = os.OpenFile(fullPath, fileOp, 0666)
 				if err != nil {
 					logError(or, "Creating file", err)
 				}
-				if err = bqo.bu.CreateTable(p.ContainerName, bqo.schema); err != nil {
+				if err = bqo.bu.CreateTable(p.Name, bqo.schema); err != nil {
 					logError(or, "Initialize Table", err)
 				}
 			}
 
 			// Write to both file and buffer
-			if p.ContainerName != ("cpu_"+p.Hostname) && p.ContainerName != ("disk_"+p.Hostname) {
-				if _, err = files[p.ContainerName].Write(payload); err != nil {
+			if p.Name != ("cpu_"+p.Hostname) && p.Name != ("disk_"+p.Hostname) {
+				if _, err = files[p.Name].Write(payload); err != nil {
 					logError(or, "Write to File", err)
 				}
-				if _, err = buffers[p.ContainerName].Write(payload); err != nil {
+				if _, err = buffers[p.Name].Write(payload); err != nil {
 					logError(or, "Write to Buffer", err)
 				}
-			} else if p.ContainerName == ("cpu_" + p.Hostname) {
+			} else if p.Name == ("cpu_" + p.Hostname) {
 				var message CPUOrig
 				err := json.Unmarshal(payload, &message)
 				if err != nil {
@@ -238,14 +257,14 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					v.Time = message.Time
 					c, _ := json.Marshal(v)
 					c = append(c, []byte("\n")...)
-					if _, err = files[p.ContainerName].Write(c); err != nil {
+					if _, err = files[p.Name].Write(c); err != nil {
 						logError(or, "Write to File", err)
 					}
-					if _, err = buffers[p.ContainerName].Write(c); err != nil {
+					if _, err = buffers[p.Name].Write(c); err != nil {
 						logError(or, "Write to Buffer", err)
 					}
 				}
-			} else if p.ContainerName == ("disk_" + p.Hostname) {
+			} else if p.Name == ("disk_" + p.Hostname) {
 				var message DiskOrig
 				err := json.Unmarshal(payload, &message)
 				if err != nil {
@@ -257,20 +276,20 @@ func (bqo *BqOutput) Run(or OutputRunner, h PluginHelper) (err error) {
 					v.Time = message.Time
 					c, _ := json.Marshal(v)
 					c = append(c, []byte("\n")...)
-					if _, err = files[p.ContainerName].Write(c); err != nil {
+					if _, err = files[p.Name].Write(c); err != nil {
 						logError(or, "Write to File", err)
 					}
-					if _, err = buffers[p.ContainerName].Write(c); err != nil {
+					if _, err = buffers[p.Name].Write(c); err != nil {
 						logError(or, "Write to Buffer", err)
 					}
 				}
 			}
 
 			// Upload Stuff (1mb)
-			if buffers[p.ContainerName].Len() > MaxBuffer {
-				files[p.ContainerName].Close() // Close file for uploading
-				bqo.UploadAndReset(buffers[p.ContainerName], fullPath, p.ContainerName, or)
-				files[p.ContainerName], err = os.OpenFile(fullPath, fileOp, 0666)
+			if buffers[p.Name].Len() > MaxBuffer {
+				files[p.Name].Close() // Close file for uploading
+				bqo.UploadAndReset(buffers[p.Name], fullPath, p.Name, or)
+				files[p.Name], err = os.OpenFile(fullPath, fileOp, 0666)
 				if err != nil {
 					logError(or, "Creating file", err)
 				}
