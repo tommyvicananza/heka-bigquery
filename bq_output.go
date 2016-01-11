@@ -131,7 +131,7 @@ type pay struct {
 
 type payloadType map[string]interface{}
 
-func checkPayloadType(ptype payloadType, pay *p) {
+func checkPayloadType(ptype payloadType, p *pay) {
 	if _, ok := ptype["numproc"]; ok {
 		p.Name = fmt.Sprintf("loadavg_%s", p.Hostname)
 	}
